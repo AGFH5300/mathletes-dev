@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { type FormEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { MathBackground } from "@/components/math-background"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Edit, Trash2, LogOut, Calendar, Clock, DollarSign, MapPin, Users } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Plus, Edit, Trash2, LogOut, Calendar, Clock, DollarSign, MapPin, Users, Image as ImageIcon } from "lucide-react"
 import Link from "next/link"
 
 interface Competition {
@@ -28,6 +29,9 @@ interface Competition {
 export default function AdminDashboardPage() {
   const [competitions, setCompetitions] = useState<Competition[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [signupFormUrl, setSignupFormUrl] = useState("")
+  const [isSettingsLoading, setIsSettingsLoading] = useState(true)
+  const [isSavingSignup, setIsSavingSignup] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -39,6 +43,7 @@ export default function AdminDashboardPage() {
           return
         }
         fetchCompetitions()
+        fetchSignupSettings()
       } catch (error) {
         router.push("/admin/login")
       }
@@ -58,6 +63,20 @@ export default function AdminDashboardPage() {
       console.error("Failed to fetch competitions:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchSignupSettings = async () => {
+    try {
+      const response = await fetch("/api/settings")
+      if (response.ok) {
+        const data = await response.json()
+        setSignupFormUrl(data.signupFormUrl || "")
+      }
+    } catch (error) {
+      console.error("Failed to load settings:", error)
+    } finally {
+      setIsSettingsLoading(false)
     }
   }
 
@@ -86,6 +105,27 @@ export default function AdminDashboardPage() {
     }
   }
 
+  const handleSignupSave = async (e: FormEvent) => {
+    e.preventDefault()
+    setIsSavingSignup(true)
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signupFormUrl }),
+      })
+
+      if (!response.ok) {
+        alert("Failed to update signup link")
+      }
+    } catch (error) {
+      console.error("Failed to update settings:", error)
+      alert("An error occurred while saving")
+    } finally {
+      setIsSavingSignup(false)
+    }
+  }
+
   return (
     <div className="min-h-screen relative pt-24 pb-16">
       <MathBackground />
@@ -97,7 +137,13 @@ export default function AdminDashboardPage() {
             <h1 className="text-4xl font-bold text-foreground mb-2">Admin Dashboard</h1>
             <p className="text-muted-foreground">Manage mathematics competitions</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap justify-end">
+            <Button asChild variant="outline" className="gap-2 bg-transparent">
+              <Link href="/admin/dashboard/past-competitions">
+                <ImageIcon className="h-4 w-4" />
+                Past Highlights
+              </Link>
+            </Button>
             <Button asChild className="gap-2">
               <Link href="/admin/dashboard/add">
                 <Plus className="h-4 w-4" />
@@ -110,6 +156,35 @@ export default function AdminDashboardPage() {
             </Button>
           </div>
         </div>
+
+        {/* Signup Link */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Competition Signup Form</CardTitle>
+            <CardDescription>
+              Share your Microsoft Forms registration link once and reuse it across the public competitions page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isSettingsLoading ? (
+              <p className="text-muted-foreground">Loading current link...</p>
+            ) : (
+              <form onSubmit={handleSignupSave} className="flex flex-col gap-4 md:flex-row">
+                <Input
+                  type="url"
+                  required
+                  value={signupFormUrl}
+                  onChange={(e) => setSignupFormUrl(e.target.value)}
+                  placeholder="https://forms.office.com/..."
+                  className="flex-1"
+                />
+                <Button type="submit" disabled={isSavingSignup} className="md:w-auto">
+                  {isSavingSignup ? "Saving..." : "Save Link"}
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Competitions List */}
         {isLoading ? (

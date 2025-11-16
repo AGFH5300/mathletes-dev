@@ -1,11 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { format } from "date-fns"
 import { MathBackground } from "@/components/math-background"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, MapPin, Trophy, ExternalLink, Clock, Users, FileText, DollarSign } from "lucide-react"
+import { Calendar, MapPin, Trophy, ExternalLink, Clock, Users, FileText, DollarSign, ArrowRight } from "lucide-react"
 
 interface Competition {
   id: number
@@ -21,6 +24,18 @@ interface Competition {
   website: string
   details: string
   resources: string
+}
+
+interface PastCompetition {
+  id: number
+  title: string
+  event_date: string
+  location: string | null
+  attendees: string | null
+  summary: string | null
+  description: string | null
+  image_path: string | null
+  is_featured: boolean
 }
 
 function CompetitionCard({ competition }: { competition: Competition }) {
@@ -143,12 +158,76 @@ function CompetitionCard({ competition }: { competition: Competition }) {
   )
 }
 
+function PastCompetitionCard({ entry }: { entry: PastCompetition }) {
+  const formattedDate = (() => {
+    if (!entry.event_date) return "Date TBA"
+    try {
+      return format(new Date(entry.event_date), "MMMM d, yyyy")
+    } catch {
+      return entry.event_date
+    }
+  })()
+
+  return (
+    <Card className="overflow-hidden h-full border-2 border-secondary/30">
+      {entry.image_path && (
+        <div className="relative h-40 w-full">
+          <Image
+            src={entry.image_path}
+            alt={entry.title}
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover"
+          />
+        </div>
+      )}
+      <CardHeader className="pb-3">
+        <CardTitle className="text-xl flex items-start gap-2">
+          {entry.title}
+          {entry.is_featured && <Badge>Featured</Badge>}
+        </CardTitle>
+        <CardDescription className="flex flex-wrap gap-3 text-sm">
+          <span className="flex items-center gap-1">
+            <Calendar className="h-4 w-4 text-primary" />
+            {formattedDate}
+          </span>
+          {entry.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="h-4 w-4 text-secondary" />
+              {entry.location}
+            </span>
+          )}
+          {entry.attendees && (
+            <span className="flex items-center gap-1">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              {entry.attendees}
+            </span>
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0 space-y-3">
+        {entry.summary && <p className="text-card-foreground text-sm">{entry.summary}</p>}
+        {entry.description && (
+          <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-line">{entry.description}</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function CompetitionsPage() {
   const [competitions, setCompetitions] = useState<Competition[]>([])
+  const [pastCompetitions, setPastCompetitions] = useState<PastCompetition[]>([])
+  const [signupFormUrl, setSignupFormUrl] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [isPastLoading, setIsPastLoading] = useState(true)
+
+  const featuredHighlights = pastCompetitions.filter((entry) => entry.is_featured)
 
   useEffect(() => {
     fetchCompetitions()
+    fetchPastCompetitions()
+    fetchSignupForm()
   }, [])
 
   const fetchCompetitions = async () => {
@@ -165,33 +244,104 @@ export default function CompetitionsPage() {
     }
   }
 
+  const fetchPastCompetitions = async () => {
+    try {
+      const response = await fetch("/api/past-competitions")
+      if (response.ok) {
+        const data = await response.json()
+        setPastCompetitions(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch past competitions:", error)
+    } finally {
+      setIsPastLoading(false)
+    }
+  }
+
+  const fetchSignupForm = async () => {
+    try {
+      const response = await fetch("/api/settings")
+      if (response.ok) {
+        const data = await response.json()
+        setSignupFormUrl(data.signupFormUrl || "")
+      }
+    } catch (error) {
+      console.error("Failed to load signup form:", error)
+    }
+  }
+
   return (
     <div className="min-h-screen relative pt-24 pb-16">
       <MathBackground />
 
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6 text-balance">
-            {"Mathematics "}
-            <span className="text-primary">Competitions</span>
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            {
-              "Explore upcoming mathematics competitions and find all the information you need to participate. Challenge yourself and showcase your mathematical skills!"
-            }
-          </p>
+        <div className="text-center mb-16 space-y-6">
+          <div>
+            <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 text-balance">
+              {"Mathematics "}
+              <span className="text-primary">Competitions</span>
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+              {
+                "Explore upcoming competitions, register your interest, and catch up on how the DIA Mathletes have performed in recent events."
+              }
+            </p>
+          </div>
+          {signupFormUrl && (
+            <Button asChild size="lg" className="gap-2">
+              <a href={signupFormUrl} target="_blank" rel="noopener noreferrer">
+                Sign up for competitions
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </Button>
+          )}
         </div>
 
         {/* Info Banner */}
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-6 mb-12">
-          <h2 className="text-xl font-bold text-foreground mb-2">{"How to Register"}</h2>
+        <div className="bg-primary/10 border border-primary/20 rounded-xl p-6 mb-12 space-y-3">
+          <h2 className="text-xl font-bold text-foreground">{"How to Register"}</h2>
           <p className="text-muted-foreground leading-relaxed">
             {
-              "Interested in participating? Visit the official website of each competition for registration details. For school-based registrations, please contact the Mathletes committee or speak with your math teacher. We offer preparation sessions for all major competitions!"
+              "Interested in participating? Visit the official website of each competition for registration details. Once you have submitted the interest form, a Mathletes mentor will follow up with preparation timelines and any school-based registration steps."
             }
           </p>
+          <div className="flex flex-wrap gap-3">
+            {signupFormUrl && (
+              <Button asChild size="sm">
+                <a href={signupFormUrl} target="_blank" rel="noopener noreferrer">
+                  Complete the Microsoft Forms interest sheet
+                </a>
+              </Button>
+            )}
+            <Button size="sm" variant="outline" asChild>
+              <a href="mailto:dia190393@diaestudents.com">Need help? Email us</a>
+            </Button>
+          </div>
         </div>
+
+        {/* Featured Highlights */}
+        {isPastLoading ? null : featuredHighlights.length > 0 ? (
+          <section className="mb-16">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div>
+                <p className="text-sm uppercase tracking-wide text-muted-foreground">Recent wins</p>
+                <h2 className="text-3xl font-bold text-foreground">Featured Highlights</h2>
+              </div>
+              <Button variant="ghost" asChild className="gap-2">
+                <Link href="/competitions/highlights">
+                  View recaps
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              {featuredHighlights.slice(0, 2).map((entry) => (
+                <PastCompetitionCard key={entry.id} entry={entry} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* Competitions Grid */}
         {isLoading ? (
@@ -210,6 +360,29 @@ export default function CompetitionsPage() {
             ))}
           </div>
         )}
+
+        {/* Past competitions */}
+        {isPastLoading ? null : pastCompetitions.length > 0 ? (
+          <section className="mt-16">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div>
+                <p className="text-sm uppercase tracking-wide text-muted-foreground">From the archives</p>
+                <h2 className="text-3xl font-bold text-foreground">Past Competitions</h2>
+              </div>
+              <Button asChild variant="outline" className="gap-2 bg-transparent">
+                <Link href="/competitions/highlights">
+                  See all highlights
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              {pastCompetitions.slice(0, 4).map((entry) => (
+                <PastCompetitionCard key={entry.id} entry={entry} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* Additional Resources Section */}
         <div className="mt-16 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-2xl p-8 md:p-12 border border-primary/20">
