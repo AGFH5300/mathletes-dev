@@ -88,7 +88,7 @@ export function Footer() {
         <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
           <p>© {currentYear} DIAMathletes. All rights reserved.</p>
           <p className="text-xs sm:text-sm">
-            Made by <a href="https://anshgupta.site" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Ansh Gupta</a>
+            Made by <a href="https://anshgupta.cc" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Ansh Gupta</a>
           </p>
           <p className="mt-2 text-xs">{"Empowering students through mathematical excellence"}</p>
         </div>
